@@ -85,3 +85,11 @@ Run the emulator:
 ```
 qemu-system-arm  -curses -kernel zImage  -cpu arm1176 -M versatilepb -serial stdio -append "root=/dev/sda2" -hda  archlinuxarm-29-04-2012/archlinuxarm-29-04-2012.img -clock dynticks
 ```
+
+
+# TODO
+
+[] Install bash in the linux system
+[] Install systemd in the linux system
+[] Try to boot my image in the qemu emulator 
+
