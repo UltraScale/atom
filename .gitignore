@@ -1,4 +1,4 @@
 sources
-kernel-linux
+linux-kernel
 dist
 build.log
