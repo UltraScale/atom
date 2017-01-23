@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -x
 
 TARGET_DIR_EXT4=$(pwd)/dist/ext4/
 TARGET_DIR_FAT32=$(pwd)/dist/fat32/
@@ -27,7 +27,8 @@ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- zImage modules dtbs
 echo "# Intall the kernel and modules"
 make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- INSTALL_MOD_PATH=$TARGET_DIR_EXT4 modules_install
 
-scripts/mkknlimg arch/arm/boot/zImage $TARGET_DIR_FAT32/$KERNEL.img
+#scripts/mkknlimg arch/arm/boot/zImage $TARGET_DIR_FAT32/zImage
+cp arch/arm/boot/zImage $TARGET_DIR_FAT32/zImage
 cp -v arch/arm/boot/dts/*.dtb $TARGET_DIR_FAT32
 cp -v arch/arm/boot/dts/overlays/*.dtb* $TARGET_DIR_FAT32/overlays/
 cp -v arch/arm/boot/dts/overlays/README $TARGET_DIR_FAT32/overlays/
