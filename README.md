@@ -92,8 +92,8 @@ qemu-system-arm  -curses -kernel zImage  -cpu arm1176 -M versatilepb -serial std
 
 
 # TODO
-
+```
 [] Install bash in the linux system
 [] Install systemd in the linux system
 [] Try to boot my image in the qemu emulator 
-
+```
