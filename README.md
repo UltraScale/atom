@@ -49,7 +49,7 @@ Now you can cross compile using the ```--host=arm-linux-gnueabihf```
 
 
 ## Building the OS
-
+```
 ├── dist
 │   ├── ext4       : The system compilation fill this directory
 │   ├── ext4.img   : Image created by the script create-ext4-img.sh
@@ -57,16 +57,20 @@ Now you can cross compile using the ```--host=arm-linux-gnueabihf```
 ├── mnt            : Temporal directory used to generate ext4.img
 ├── sources        : This directory is used to download the sources and the builds
 ├── linux-kernel   : Temporal directory created by the script build-kernel to download and compile the linux kernel 
-
+```
 
 
 ### Scripts
 
 **build-kernel.sh:** Download the temporal directory ```linux-kernel```, then build and compile the kernel, save the results in ```dist/fat32``` and ```dist/ext4```
+
 **build-system.sh:** Download the sources and build the linux system, save the result in ```dist/ext4```
-**create-ext4-img.sh:** Take ```dist/ext4``` and creates the image file ```dist/ext4.img``` 
+
+**create-ext4-img.sh:** Take ```dist/ext4``` and creates the image file ```dist/ext4.img```
+
 **pi-emulate.sh:**: Emulates a raspberry pi3 using the kernel located in ```dist/fat32
 ``` and the linux system in ```dist/ext4.img```
+
 **strip_all.sh:** Delete all the build symbols in the binaries in ```dist/**```
 
 
