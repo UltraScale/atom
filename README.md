@@ -97,3 +97,21 @@ qemu-system-arm  -curses -kernel zImage  -cpu arm1176 -M versatilepb -serial std
 [] Install systemd in the linux system
 [] Try to boot my image in the qemu emulator 
 ```
+
+
+# IDEAS
+
+Recursive make
+
+```
+SUBDIRS = foo bar baz
+
+.PHONY: subdirs $(SUBDIRS)
+
+subdirs: $(SUBDIRS)
+
+$(SUBDIRS):
+        $(MAKE) -C $@
+
+foo: baz
+```

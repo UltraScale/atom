@@ -7,7 +7,7 @@
 # Optional parameteres below:
 LFS_TGT=arm-linux-gnueabihf
 TARGET_DIR=$(pwd)/dist/ext4/
-PARALLEL_JOBS=4                 # Number of parallel make jobs, 1 for RPi1 and 4 for RPi2 and RPi3 recommended.
+PARALLEL_JOBS=1                 # Number of parallel make jobs, 1 for RPi1 and 4 for RPi2 and RPi3 recommended.
 LOCAL_TIMEZONE=Europe/London    # Use this timezone from /usr/share/zoneinfo/ to set /etc/localtime. See "6.9.2. Configuring Glibc".
 GROFF_PAPER_SIZE=A4             # Use this default paper size for Groff. See "6.52. Groff-1.22.3".
 INSTALL_OPTIONAL_DOCS=0         # Install optional documentation when given a choice?
@@ -15,7 +15,7 @@ INSTALL_ALL_LOCALES=0           # Install all glibc locales? By default only en_
 INSTALL_SYSTEMD_DEPS=1          # Install optional systemd dependencies? (Attr, Acl, Libcap, Expat, XML::Parser & Intltool)
 
 # End of optional parameters
-
+set -x
 set -o nounset
 set -o errexit
 
@@ -76,6 +76,12 @@ bash -c "wget -c -nc -i ../wget-list"
 cd ..
 
 
+## SKIP
+if false; then
+echo ""
+fi ### SKIP
+
+
 echo "# 6.7. Raspberry Pi Linux API Headers"
 cd sources
 rm -rf linux-rpi-4.4.y
@@ -89,14 +95,12 @@ cd ../..
 
 
 
-## SKIP
-if false; then
-echo ""
-fi ####SKIP END
 
 
 
 echo "# 6.9. Glibc-2.24"
+rm -f $TARGET_DIR/usr/lib/ld-linux*
+rm -f $TARGET_DIR/lib/ld-linux*
 cd sources
 tar -Jxf glibc-2.24.tar.xz
 cd glibc-2.24
@@ -173,51 +177,113 @@ include /etc/ld.so.conf.d/*.conf
 EOF
 mkdir -pv $TARGET_DIR/etc/ld.so.conf.d
 # Compatibility symlink for non ld-linux-armhf awareness
+
+
 ln -sv ld-2.24.so $TARGET_DIR/usr/lib/ld-linux.so.3
-cd ..
+ln -sv ../usr/lib/ld-2.24.so $TARGET_DIR/lib/ld-linux-armhf.so.3
+ln -sv ../usr/lib/ld-2.24.so $TARGET_DIR/lib/ld-linux.so.3
+cd ../..
 rm -rf glibc-2.24
 cd ..
 
-exit 0
-
-
-## HERE #################################################################
 
 
 
 
-
-
-
-
-echo "# 6.10. Adjusting the Toolchain"
-mv -v /tools/bin/{ld,ld-old}
-mv -v /tools/$(gcc -dumpmachine)/bin/{ld,ld-old}
-mv -v /tools/bin/{ld-new,ld}
-ln -sv /tools/bin/ld /tools/$(gcc -dumpmachine)/bin/ld
-gcc -dumpspecs | sed -e 's@/tools@@g'                   \
-    -e '/\*startfile_prefix_spec:/{n;s@.*@/usr/lib/ @}' \
-    -e '/\*cpp:/{n;s@$@ -isystem /usr/include@}' >      \
-    `dirname $(gcc --print-libgcc-file-name)`/specs
-
-
-if [[ $INSTALL_SYSTEMD_DEPS = 1 ]] ; then
-echo "6.21. Attr-2.4.47"
-tar -zxf attr-2.4.47.src.tar.gz
-cd attr-2.4.47
-sed -i -e 's|/@pkg_name@|&-@pkg_version@|' include/builddefs.in
-sed -i -e "/SUBDIRS/s|man2||" man/Makefile
-./configure --prefix=/usr \
-            --bindir=/bin \
-            --disable-static
+echo "# 6.20. Ncurses-6.0"
+echo "Removing previously installed libraries"
+for lib in ncurses form panel menu ; do
+    rm -vf                    $TARGET_DIR/usr/lib/lib${lib}.so
+    rm -vf                    $TARGET_DIR/usr/lib/lib${lib}w.so
+done
+cd sources
+rm -rf ncurses-6.0
+tar -zxf ncurses-6.0.tar.gz
+cd ncurses-6.0
+sed -i '/LIBTOOL_INSTALL/d' c++/Makefile.in
+./configure --prefix=$TARGET_DIR/usr           \
+            --host=$LFS_TGT           \
+            --with-shared           \
+            --without-debug         \
+            --without-normal        \
+            --enable-pc-files       \
+            --enable-widec         \
+            LDFLAGS=-L$TARGET_DIR/usr/lib  \
+            CPPFLAGS="-P"
 make -j $PARALLEL_JOBS
-make install install-dev install-lib
-chmod -v 755 /usr/lib/libattr.so
-mv -v /usr/lib/libattr.so.* /lib
-ln -sfv ../../lib/$(readlink /usr/lib/libattr.so) /usr/lib/libattr.so
-cd /sources
-rm -rf attr-2.4.47
-fi
+
+rm -rf $TARGET_DIR/usr/lib/libncursesw.so
+rm -rf $TARGET_DIR/lib/libncursesw.so
+
+CPPFLAGS="-P" make install
+mv -v $TARGET_DIR/usr/lib/libncursesw.so.6* $TARGET_DIR/lib
+echo "RECREATING LINK: " 
+ln -sfv ../../lib/$(readlink $TARGET_DIR/usr/lib/libncursesw.so) $TARGET_DIR/usr/lib/libncursesw.so
+for lib in ncurses form panel menu ; do
+    rm -vf                    $TARGET_DIR/usr/lib/lib${lib}.so
+    echo "INPUT(-l${lib}w)" > $TARGET_DIR/usr/lib/lib${lib}.so
+    ln -sfv ${lib}w.pc        $TARGET_DIR/usr/lib/pkgconfig/${lib}.pc || true
+done
+rm -vf                     $TARGET_DIR/usr/lib/libcursesw.so
+echo "INPUT(-lncursesw)" > $TARGET_DIR/usr/lib/libcursesw.so
+ln -sfv libncurses.so      $TARGET_DIR/usr/lib/libcurses.so
+rm -rf $TARGET_DIR/usr/share/man
+cd ..
+rm -rf ncurses-6.0
+cd ..
+
+
+echo "# 6.32. Readline-7.0"
+
+rm -f $TARGET_DIR/lib/libreadline.so.7
+rm -f $TARGET_DIR/lib/libhistory.so.7
+cd sources
+tar -zxf readline-7.0.tar.gz
+cd readline-7.0
+sed -i '/MV.*old/d' Makefile.in
+sed -i '/{OLDSUFF}/c:' support/shlib-install
+./configure --prefix=$TARGET_DIR/usr   \
+            --disable-static \
+            --host=$LFS_TGT \
+            LDFLAGS=-L$TARGET_DIR/usr/lib  \
+            --docdir=$TARGET_DIR/usr/share/doc/readline-7.0 
+make -j $PARALLEL_JOBS SHLIB_LIBS=-lncurses
+make SHLIB_LIBS=-lncurses install
+mv -v $TARGET_DIR/usr/lib/lib{readline,history}.so.* $TARGET_DIR/lib
+ln -sfv ../../lib/$(readlink $TARGET_DIR/usr/lib/libreadline.so) $TARGET_DIR/usr/lib/libreadline.so
+ln -sfv ../../lib/$(readlink $TARGET_DIR/usr/lib/libhistory.so ) $TARGET_DIR/usr/lib/libhistory.so
+cd ..
+rm -rf readline-7.0
+cd ..
+
+
+
+
+
+echo "# 6.33. Bash-4.4"
+cd sources
+tar -zxf bash-4.4.tar.gz
+cd bash-4.4
+./configure --prefix=$TARGET_DIR/usr                    \
+            --docdir=$TARGET_DIR/usr/share/doc/bash-4.4 \
+            --without-bash-malloc            \
+            --with-installed-readline        \
+            LDFLAGS=-L$TARGET_DIR/usr/lib  \
+            --host=$LFS_TGT           
+make -j $PARALLEL_JOBS
+make install
+mv -vf $TARGET_DIR/usr/bin/bash $TARGET_DIR/bin
+# exec /bin/bash --login +h
+# Don't know of a good way to keep running the script after entering bash here.
+cd ..
+rm -rf bash-4.4
+cd ..
+
+
+exit 0
+######## HERE ############################################
+
+
 
 if [[ $INSTALL_SYSTEMD_DEPS = 1 ]] ; then
 echo "6.22. Acl-2.2.52"
@@ -233,7 +299,7 @@ sed -i -e "/TABS-1;/a if (x > (TABS-1)) x = (TABS-1);" libacl/__acl_to_any_text.
 make -j $PARALLEL_JOBS
 make install install-dev install-lib
 chmod -v 755 /usr/lib/libacl.so
-mv -v /usr/lib/libacl.so.* /lib
+mv -vf /usr/lib/libacl.so.* /lib
 ln -sfv ../../lib/$(readlink /usr/lib/libacl.so) /usr/lib/libacl.so
 cd /sources
 rm -rf acl-2.2.52
